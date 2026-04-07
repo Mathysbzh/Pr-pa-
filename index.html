@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Run10K">
+<meta name="theme-color" content="#0a0a0f">
+<title>Run10K — 50min Challenge</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --card: #1a1a26;
+    --border: #2a2a3a;
+    --accent: #e8ff47;
+    --accent2: #47c8ff;
+    --accent3: #ff6b35;
+    --accent4: #b47fff;
+    --text: #f0f0f8;
+    --muted: #6666aa;
+    --success: #4fffb0;
+    --danger: #ff4f6b;
+    --radius: 16px;
+    --font-mono: 'Space Mono', monospace;
+    --font-sans: 'Syne', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-sans); overflow: hidden; }
+
+#splash { position: fixed; inset: 0; background: var(–bg); z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; transition: opacity 0.6s ease; }
+#splash.hide { opacity: 0; pointer-events: none; }
+.splash-logo { font-size: 64px; line-height: 1; }
+.splash-title { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+.splash-sub { font-size: 13px; color: var(–muted); font-family: var(–font-mono); }
+.splash-bar { width: 120px; height: 3px; background: var(–border); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.splash-bar-fill { height: 100%; background: var(–accent); width: 0; animation: loadBar 1.2s ease forwards 0.2s; }
+@keyframes loadBar { to { width: 100%; } }
+
+#app { display: flex; flex-direction: column; height: 100%; }
+.header { padding: 52px 20px 16px; border-bottom: 1px solid var(–border); }
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.header-label { font-size: 11px; font-family: var(–font-mono); color: var(–muted); letter-spacing: 2px; text-transform: uppercase; }
+.header-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; margin-top: 2px; }
+.header-title span { color: var(–accent); }
+.header-badge { background: var(–accent); color: #0a0a0f; border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 700; font-family: var(–font-mono); white-space: nowrap; }
+
+.tabs { display: flex; background: var(–surface); border-bottom: 1px solid var(–border); padding: 0 8px; }
+.tab { flex: 1; padding: 14px 4px; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(–muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; font-family: var(–font-mono); }
+.tab.active { color: var(–accent); border-bottom-color: var(–accent); }
+
+.content { flex: 1; overflow-y: auto; padding-bottom: 20px; }
+.page { display: none; }
+.page.active { display: block; }
+
+.week-section { padding: 20px 16px 0; }
+.week-label { font-size: 10px; font-family: var(–font-mono); color: var(–muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.week-label::after { content: ‘’; flex: 1; height: 1px; background: var(–border); }
+
+.session-card { background: var(–card); border: 1px solid var(–border); border-radius: var(–radius); padding: 16px; margin-bottom: 10px; position: relative; overflow: hidden; transition: transform 0.15s; cursor: pointer; animation: fadeSlideUp 0.3s ease both; }
+.session-card:active { transform: scale(0.98); }
+.session-card.done { border-color: var(–success); }
+.session-card.done::before { content: ‘’; position: absolute; inset: 0; background: rgba(79,255,176,0.05); }
+.session-card.skipped { border-color: var(–danger); opacity: 0.6; }
+.session-card.current { border-color: var(–accent); }
+.session-card.current::before { content: ‘’; position: absolute; inset: 0; background: rgba(232,255,71,0.04); }
+
+.session-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.session-name { font-size: 15px; font-weight: 700; padding-right: 30px; }
+.session-badge { font-size: 10px; font-family: var(–font-mono); padding: 3px 8px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
+.badge-endurance { background: rgba(71,200,255,0.15); color: var(–accent2); }
+.badge-fractionne { background: rgba(255,107,53,0.15); color: var(–accent3); }
+.badge-tempo { background: rgba(232,255,71,0.15); color: var(–accent); }
+.badge-recuperation { background: rgba(102,102,170,0.15); color: var(–muted); }
+.badge-renforcement { background: rgba(180,127,255,0.15); color: var(–accent4); }
+
+.session-details { font-size: 12px; color: var(–muted); line-height: 1.6; margin-bottom: 12px; font-family: var(–font-mono); }
+.session-details strong { color: var(–text); font-weight: 400; }
+
+/* EXERCICES BLOC */
+.exercices-bloc { background: var(–surface); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+.exercice-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(–border); font-size: 12px; }
+.exercice-row:last-child { border-bottom: none; }
+.exercice-name { color: var(–text); }
+.exercice-detail { color: var(–accent4); font-family: var(–font-mono); font-size: 11px; }
+
+.session-actions { display: flex; gap: 8px; }
+.btn { flex: 1; padding: 10px; border: none; border-radius: 10px; font-size: 12px; font-weight: 700; font-family: var(–font-sans); cursor: pointer; transition: all 0.15s; }
+.btn:active { transform: scale(0.96); }
+.btn-done { background: var(–success); color: #0a0a0f; }
+.btn-skip { background: var(–border); color: var(–muted); }
+.btn-reset { background: var(–border); color: var(–text); font-size: 11px; }
+.btn-apple { background: #333; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.status-icon { position: absolute; top: 16px; right: 16px; font-size: 20px; }
+
+/* RECAP */
+.progress-hero { margin: 20px 16px; background: var(–card); border: 1px solid var(–border); border-radius: 20px; padding: 24px; display: flex; align-items: center; gap: 24px; }
+.ring-wrap { position: relative; width: 90px; height: 90px; flex-shrink: 0; }
+.ring-wrap svg { transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: var(–border); stroke-width: 6; }
+.ring-fill { fill: none; stroke: var(–accent); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 251; transition: stroke-dashoffset 1s ease; }
+.ring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-pct { font-size: 20px; font-weight: 800; font-family: var(–font-mono); color: var(–accent); }
+.ring-lbl { font-size: 9px; color: var(–muted); font-family: var(–font-mono); letter-spacing: 1px; }
+.hero-stats { flex: 1; }
+.hero-stat { margin-bottom: 12px; }
+.hero-stat-label { font-size: 10px; color: var(–muted); font-family: var(–font-mono); letter-spacing: 1px; text-transform: uppercase; }
+.hero-stat-value { font-size: 22px; font-weight: 800; }
+.hero-stat-value span { font-size: 12px; color: var(–muted); font-weight: 400; font-family: var(–font-mono); }
+
+.perf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px 16px; }
+.perf-card { background: var(–card); border: 1px solid var(–border); border-radius: var(–radius); padding: 16px; }
+.perf-card-label { font-size: 10px; color: var(–muted); font-family: var(–font-mono); letter-spacing: 1px; margin-bottom: 6px; text-transform: uppercase; }
+.perf-card-value { font-size: 22px; font-weight: 800; }
+.perf-card-sub { font-size: 11px; color: var(–muted); font-family: var(–font-mono); margin-top: 2px; }
+.color-accent { color: var(–accent); }
+.color-accent2 { color: var(–accent2); }
+.color-accent4 { color: var(–accent4); }
+.color-success { color: var(–success); }
+.color-danger { color: var(–danger); }
+
+.chart-section { padding: 0 16px 16px; }
+.chart-card { background: var(–card); border: 1px solid var(–border); border-radius: var(–radius); padding: 16px; }
+.chart-title { font-size: 11px; font-family: var(–font-mono); color: var(–muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; }
+.chart-bars { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
+.chart-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+.chart-bar { width: 100%; border-radius: 4px 4px 0 0; min-height: 4px; }
+.chart-bar-done { background: var(–accent); }
+.chart-bar-renfo { background: var(–accent4); }
+.chart-bar-skip { background: var(–danger); opacity: 0.5; }
+.chart-bar-future { background: var(–border); }
+.chart-bar-label { font-size: 9px; font-family: var(–font-mono); color: var(–muted); }
+
+.section-title { padding: 20px 16px 12px; font-size: 13px; font-family: var(–font-mono); color: var(–muted); letter-spacing: 2px; text-transform: uppercase; }
+.pace-section { padding: 0 16px 16px; }
+.pace-input-card { background: var(–card); border: 1px solid var(–border); border-radius: var(–radius); padding: 16px; }
+.pace-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.pace-input { background: var(–surface); border: 1px solid var(–border); border-radius: 10px; color: var(–text); font-family: var(–font-mono); font-size: 16px; padding: 10px 14px; width: 90px; text-align: center; }
+.pace-input:focus { outline: none; border-color: var(–accent); }
+.pace-label { font-size: 13px; color: var(–muted); font-family: var(–font-mono); flex: 1; }
+.btn-log { background: var(–accent); color: #0a0a0f; padding: 10px 20px; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: var(–font-sans); flex-shrink: 0; }
+.pace-history { margin-top: 12px; }
+.pace-entry { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(–border); }
+.pace-entry:last-child { border-bottom: none; }
+.pace-entry-date { font-size: 11px; color: var(–muted); font-family: var(–font-mono); }
+.pace-entry-val { font-size: 15px; font-weight: 700; font-family: var(–font-mono); color: var(–accent2); }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+.modal-overlay.show { opacity: 1; pointer-events: all; }
+.modal { background: var(–surface); border-radius: 24px 24px 0 0; padding: 24px; width: 100%; max-width: 500px; border-top: 1px solid var(–border); transform: translateY(100%); transition: transform 0.3s ease; max-height: 85vh; overflow-y: auto; }
+.modal-overlay.show .modal { transform: translateY(0); }
+.modal-handle { width: 40px; height: 4px; background: var(–border); border-radius: 2px; margin: 0 auto 20px; }
+.modal-title { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+.modal-sub { font-size: 13px; color: var(–muted); line-height: 1.6; margin-bottom: 20px; font-family: var(–font-mono); }
+.modal-step { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }
+.modal-step-num { background: var(–accent); color: #0a0a0f; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; margin-top: 2px; }
+.modal-step-text { font-size: 13px; line-height: 1.5; }
+.modal-step-text strong { color: var(–accent); }
+.btn-close-modal { width: 100%; background: var(–border); color: var(–text); padding: 14px; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(–font-sans); margin-top: 8px; }
+
+.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(–text); color: var(–bg); padding: 12px 20px; border-radius: 30px; font-size: 13px; font-weight: 700; opacity: 0; transition: all 0.3s; z-index: 200; white-space: nowrap; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(–border); border-radius: 2px; }
+@keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+</head>
+<body>
+
+<div id="splash">
+  <div class="splash-logo">🏃</div>
+  <div class="splash-title">Run<span style="color:var(--accent)">10K</span></div>
+  <div class="splash-sub">50min Challenge</div>
+  <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+</div>
+
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header-label">Objectif</div>
+        <div class="header-title">10km en <span>50min</span></div>
+      </div>
+      <div class="header-badge">5'00/km</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('programme')">Programme</div>
+    <div class="tab" onclick="switchTab('recap')">Récap</div>
+    <div class="tab" onclick="switchTab('montre')">⌚ Watch</div>
+  </div>
+
+  <div class="content">
+    <div class="page active" id="page-programme">
+      <div id="programme-content"></div>
+    </div>
+
+```
+<div class="page" id="page-recap">
+  <div class="progress-hero">
+    <div class="ring-wrap">
+      <svg width="90" height="90" viewBox="0 0 90 90">
+        <circle class="ring-bg" cx="45" cy="45" r="40"/>
+        <circle class="ring-fill" id="ringFill" cx="45" cy="45" r="40" stroke-dashoffset="251"/>
+      </svg>
+      <div class="ring-text">
+        <div class="ring-pct" id="ringPct">0%</div>
+        <div class="ring-lbl">FAIT</div>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-label">Progression</div>
+        <div class="hero-stat-value" id="statDone">0 <span>séances</span></div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-label">Allure actuelle</div>
+        <div class="hero-stat-value" id="statPace">6'20 <span>/km</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="perf-grid">
+    <div class="perf-card">
+      <div class="perf-card-label">Course faites</div>
+      <div class="perf-card-value color-success" id="pcDone">0</div>
+      <div class="perf-card-sub">sur <span id="pcTotal">0</span> prévues</div>
+    </div>
+    <div class="perf-card">
+      <div class="perf-card-label">Renfo faits</div>
+      <div class="perf-card-value color-accent4" id="pcRenfo">0</div>
+      <div class="perf-card-sub">séances muscu</div>
+    </div>
+    <div class="perf-card">
+      <div class="perf-card-label">Semaine</div>
+      <div class="perf-card-value color-accent" id="pcWeek">S1</div>
+      <div class="perf-card-sub">sur 10 semaines</div>
+    </div>
+    <div class="perf-card">
+      <div class="perf-card-label">Sautées</div>
+      <div class="perf-card-value color-danger" id="pcSkip">0</div>
+      <div class="perf-card-sub">à rattraper</div>
+    </div>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-card">
+      <div class="chart-title">Activité par semaine</div>
+      <div style="display:flex;gap:12px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);font-family:var(--font-mono);"><div style="width:10px;height:10px;background:var(--accent);border-radius:2px;"></div>Course</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);font-family:var(--font-mono);"><div style="width:10px;height:10px;background:var(--accent4);border-radius:2px;"></div>Renfo</div>
+      </div>
+      <div class="chart-bars" id="chartBars"></div>
+    </div>
+  </div>
+
+  <div class="section-title">Suivi allure</div>
+  <div class="pace-section">
+    <div class="pace-input-card">
+      <div class="pace-row">
+        <input class="pace-input" id="paceInput" type="text" placeholder="5'45" maxlength="4">
+        <span class="pace-label">/km</span>
+        <button class="btn-log" onclick="logPace()">+ Log</button>
+      </div>
+      <div class="pace-history" id="paceHistory"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-montre">
+  <div style="padding: 24px 16px;">
+    <div style="text-align:center; margin-bottom:24px;">
+      <div style="font-size:64px; margin-bottom:8px;">⌚</div>
+      <div style="font-size:20px; font-weight:800; margin-bottom:8px;">Apple Watch</div>
+      <div style="font-size:13px; color:var(--muted); font-family:var(--font-mono); line-height:1.6;">Suis tes séances directement<br>depuis ton poignet</div>
+    </div>
+    <div class="perf-card" style="margin-bottom:12px;">
+      <div style="font-size:13px; font-weight:700; margin-bottom:12px;">▶️ Prochaine séance</div>
+      <div id="nextSessionWatch" style="font-size:13px; color:var(--muted); font-family:var(--font-mono); line-height:1.7;"></div>
+    </div>
+    <div class="perf-card" style="margin-bottom:12px;">
+      <div style="font-size:13px; font-weight:700; margin-bottom:8px;">🔗 Apple Watch + Course</div>
+      <div style="font-size:12px; color:var(--muted); font-family:var(--font-mono); line-height:1.7;">
+        <div class="modal-step" style="margin-bottom:8px;"><div class="modal-step-num">1</div><div class="modal-step-text">Watch : <strong>Entraînement → Course plein air</strong></div></div>
+        <div class="modal-step" style="margin-bottom:8px;"><div class="modal-step-num">2</div><div class="modal-step-text">Après : valide ici en appuyant <strong>Fait ✓</strong></div></div>
+        <div class="modal-step"><div class="modal-step-num">3</div><div class="modal-step-text">Allure réelle dans <strong>Santé → Course à pied</strong></div></div>
+      </div>
+    </div>
+    <div class="perf-card" style="margin-bottom:12px;">
+      <div style="font-size:13px; font-weight:700; margin-bottom:8px;">💪 Pour les séances Renfo</div>
+      <div style="font-size:12px; color:var(--muted); font-family:var(--font-mono); line-height:1.7;">
+        <div class="modal-step" style="margin-bottom:8px;"><div class="modal-step-num">1</div><div class="modal-step-text">Watch : <strong>Entraînement → Entraînement fonctionnel</strong></div></div>
+        <div class="modal-step"><div class="modal-step-num">2</div><div class="modal-step-text">Suit tes calories et ta fréquence cardiaque pendant les exercices</div></div>
+      </div>
+    </div>
+    <div class="perf-card">
+      <div style="font-size:13px; font-weight:700; margin-bottom:8px;">📋 Cette semaine</div>
+      <div id="watchWeekSessions" style="font-size:13px; color:var(--muted); font-family:var(--font-mono); line-height:2;"></div>
+    </div>
+  </div>
+</div>
+```
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="watchModal" onclick="closeWatchModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle">⌚ Lancer sur Apple Watch</div>
+    <div class="modal-sub" id="modalSessionInfo"></div>
+    <div id="modalSteps"></div>
+    <button class="btn-close-modal" onclick="closeModal('watchModal')">Fermer</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PROGRAMME = [
+  // SEMAINE 1
+  { week:1, name:"Sortie découverte", type:"endurance", dist:"4 km", allure:"6'20-6'30/km", desc:"Allure très confortable, tu dois pouvoir parler facilement. Échauffement 5 min marche.", duration:"30 min" },
+  { week:1, name:"Renforcement — Base", type:"renforcement", dist:"", allure:"", duration:"30 min",
+    desc:"Circuit fondation pour les runners. 3 tours, 45 sec repos entre les exercices.",
+    exercices:[
+      {name:"Squat",detail:"3×15 reps"},
+      {name:"Fentes avant alternées",detail:"3×10 / jambe"},
+      {name:"Gainage frontal",detail:"3×30 sec"},
+      {name:"Pont fessier",detail:"3×15 reps"},
+      {name:"Montées de genoux sur place",detail:"3×30 sec"},
+      {name:"Pompes",detail:"3×10 reps"}
+    ]
+  },
+  { week:1, name:"Sortie longue douce", type:"endurance", dist:"5 km", allure:"6'30/km", desc:"Allure conversation. L'objectif est la durée, pas la vitesse.", duration:"35 min" },
+  { week:1, name:"Fractionné léger", type:"fractionne", dist:"3 km", allure:"5'45/km × 3×3 min", desc:"10 min échauffement, puis 3 séries de 3 min à 5'45/km. Récup 2 min marche.", duration:"35 min" },
+
+  // SEMAINE 2
+  { week:2, name:"Endurance fondamentale", type:"endurance", dist:"5 km", allure:"6'15/km", desc:"Rythme régulier et confortable. Sens ta foulée s'améliorer.", duration:"32 min" },
+  { week:2, name:"Renforcement — Jambes", type:"renforcement", dist:"", allure:"", duration:"35 min",
+    desc:"Focus sur les muscles propulseurs du runner. 3 tours.",
+    exercices:[
+      {name:"Squat sauté",detail:"3×12 reps"},
+      {name:"Fentes latérales",detail:"3×10 / jambe"},
+      {name:"Mollets debout",detail:"3×20 reps"},
+      {name:"Gainage latéral",detail:"3×25 sec / côté"},
+      {name:"Burpees",detail:"3×8 reps"},
+      {name:"Superman (dos)",detail:"3×12 reps"}
+    ]
+  },
+  { week:2, name:"Sortie longue", type:"endurance", dist:"6 km", allure:"6'20/km", desc:"Premier 6 km ! Allure facile, hydrate-toi à mi-parcours.", duration:"40 min" },
+  { week:2, name:"Fractionné 4×4", type:"fractionne", dist:"4 km", allure:"5'30/km × 4×4 min", desc:"4 séries de 4 min à 5'30/km. Récup 90 sec marche.", duration:"40 min" },
+
+  // SEMAINE 3
+  { week:3, name:"Tempo court", type:"tempo", dist:"4 km", allure:"5'50/km", desc:"Effort soutenu : difficile de parler, mais tu tiens. Régularité.", duration:"25 min" },
+  { week:3, name:"Renforcement — Core & Gainage", type:"renforcement", dist:"", allure:"", duration:"30 min",
+    desc:"Le gainage est clé pour une bonne économie de course. 3 tours.",
+    exercices:[
+      {name:"Gainage frontal",detail:"3×45 sec"},
+      {name:"Gainage latéral",detail:"3×35 sec / côté"},
+      {name:"Mountain climbers",detail:"3×20 reps"},
+      {name:"Crunch bicycle",detail:"3×15 reps"},
+      {name:"Planche avec toucher épaule",detail:"3×10 / côté"},
+      {name:"Dead bug",detail:"3×10 reps"}
+    ]
+  },
+  { week:3, name:"Sortie longue", type:"endurance", dist:"7 km", allure:"6'15/km", desc:"7 km à allure confortable. Découpe en deux parties de 3.5 km mentalement.", duration:"45 min" },
+  { week:3, name:"Fractionné 5×3", type:"fractionne", dist:"4 km", allure:"5'15/km × 5×3 min", desc:"5 séries de 3 min à 5'15/km (vif !). Récup 2 min entre chaque.", duration:"45 min" },
+
+  // SEMAINE 4 — RÉCUP
+  { week:4, name:"Récupération active", type:"recuperation", dist:"4 km", allure:"6'40/km", desc:"Semaine de récup ! Allure très facile, jambes légères.", duration:"28 min" },
+  { week:4, name:"Renforcement — Mobilité", type:"renforcement", dist:"", allure:"", duration:"25 min",
+    desc:"Semaine récup : on travaille la mobilité et l'étirement actif. 2 tours.",
+    exercices:[
+      {name:"Hip circles (cercles hanches)",detail:"2×10 / sens"},
+      {name:"Fentes avec rotation",detail:"2×8 / jambe"},
+      {name:"Squat profond tenu",detail:"2×30 sec"},
+      {name:"Étirement ischio debout",detail:"2×30 sec / jambe"},
+      {name:"Cat-cow (dos / ventre)",detail:"2×10 reps"},
+      {name:"Pigeon yoga",detail:"2×45 sec / côté"}
+    ]
+  },
+  { week:4, name:"Sortie tranquille", type:"recuperation", dist:"5 km", allure:"6'30/km", desc:"Sortie plaisir. Aucune pression. Recharge les batteries.", duration:"35 min" },
+  { week:4, name:"Fractionné doux", type:"fractionne", dist:"3 km", allure:"5'45/km × 3×3 min", desc:"Version légère. Reprise en douceur, sensations avant tout.", duration:"32 min" },
+
+  // SEMAINE 5
+  { week:5, name:"Endurance progressive", type:"endurance", dist:"5 km", allure:"6'10→5'50/km", desc:"Commence à 6'10/km, accélère pour finir à 5'50/km les 2 derniers km.", duration:"33 min" },
+  { week:5, name:"Renforcement — Puissance", type:"renforcement", dist:"", allure:"", duration:"35 min",
+    desc:"On monte en intensité. Exercices explosifs pour la propulsion. 3 tours.",
+    exercices:[
+      {name:"Squat jump",detail:"3×12 reps"},
+      {name:"Fentes sautées",detail:"3×8 / jambe"},
+      {name:"Gainage dynamique",detail:"3×40 sec"},
+      {name:"Step-up sur chaise",detail:"3×12 / jambe"},
+      {name:"Pompes explosives",detail:"3×8 reps"},
+      {name:"Sprint sur place",detail:"3×20 sec"}
+    ]
+  },
+  { week:5, name:"Sortie longue", type:"endurance", dist:"8 km", allure:"6'10/km", desc:"8 km ! Un palier important. Allure régulière, respiration contrôlée.", duration:"50 min" },
+  { week:5, name:"Fractionné intensif", type:"fractionne", dist:"5 km", allure:"5'10/km × 6×3 min", desc:"6 séries de 3 min vifs. Récup 90 sec. C'est dur, c'est utile !", duration:"50 min" },
+
+  // SEMAINE 6
+  { week:6, name:"Tempo moyen", type:"tempo", dist:"5 km", allure:"5'40/km", desc:"Effort soutenu sur 5 km. Allure proche de ton objectif. Sens la progression !", duration:"30 min" },
+  { week:6, name:"Renforcement — Full body", type:"renforcement", dist:"", allure:"", duration:"40 min",
+    desc:"Séance complète. Tu es à mi-programme, on sollicite tout le corps. 3 tours.",
+    exercices:[
+      {name:"Burpees complets",detail:"3×10 reps"},
+      {name:"Squat + presse épaules (sans poids)",detail:"3×15 reps"},
+      {name:"Gainage frontal",detail:"3×50 sec"},
+      {name:"Mountain climbers rapides",detail:"3×25 reps"},
+      {name:"Fentes marchées",detail:"3×12 / jambe"},
+      {name:"Superman + rotation",detail:"3×10 reps"},
+      {name:"Jumping jacks",detail:"3×30 sec"}
+    ]
+  },
+  { week:6, name:"Sortie longue", type:"endurance", dist:"8 km", allure:"6'05/km", desc:"Consolide le 8 km avec une meilleure allure. Mi-programme, bravo !", duration:"49 min" },
+  { week:6, name:"Fractionné long", type:"fractionne", dist:"6 km", allure:"5'20/km × 4×5 min", desc:"4 séries de 5 min à bonne allure. Récup 2 min. Résistance et puissance.", duration:"55 min" },
+
+  // SEMAINE 7
+  { week:7, name:"Endurance qualité", type:"endurance", dist:"6 km", allure:"5'55/km", desc:"Allure soutenue sur 6 km. Tu dois sentir l'effort sans être à fond.", duration:"36 min" },
+  { week:7, name:"Renforcement — Gainage avancé", type:"renforcement", dist:"", allure:"", duration:"35 min",
+    desc:"Gainage avancé + plyométrie. Prépare le corps au 9km. 3 tours.",
+    exercices:[
+      {name:"Planche dynamique",detail:"3×45 sec"},
+      {name:"Squat pistol assisté (chaise)",detail:"3×6 / jambe"},
+      {name:"Fentes avec saut",detail:"3×10 reps"},
+      {name:"Gainage + toucher talon",detail:"3×12 reps"},
+      {name:"Step-up rapide",detail:"3×15 / jambe"},
+      {name:"Pompes + rotation",detail:"3×8 reps"}
+    ]
+  },
+  { week:7, name:"Premier vrai 9 km", type:"endurance", dist:"9 km", allure:"6'00/km", desc:"9 km pour la première fois ! Allure maîtrisée. Visualise le 10 km.", duration:"55 min" },
+  { week:7, name:"Fractionné pyramide", type:"fractionne", dist:"5 km", allure:"5'00-5'30/km", desc:"2+3+4+3+2 min à 5'00/km. Récup 90 sec. Séance signature !", duration:"55 min" },
+
+  // SEMAINE 8 — RÉCUP
+  { week:8, name:"Récupération qualité", type:"recuperation", dist:"5 km", allure:"6'20/km", desc:"Semaine de récup avant le push final. Corps et esprit se rechargent.", duration:"33 min" },
+  { week:8, name:"Renforcement — Mobilité avancée", type:"renforcement", dist:"", allure:"", duration:"25 min",
+    desc:"Mobilité et récupération active. Prépare le corps pour le sprint final. 2 tours.",
+    exercices:[
+      {name:"Étirement hip flexor",detail:"2×45 sec / jambe"},
+      {name:"Fente basse tenue",detail:"2×40 sec / jambe"},
+      {name:"Rotations thoraciques",detail:"2×10 / côté"},
+      {name:"Gainage léger",detail:"2×30 sec"},
+      {name:"Squat profond respiration",detail:"2×10 reps"},
+      {name:"Rouleau mousse (simulé au sol)",detail:"2×1 min / zone"}
+    ]
+  },
+  { week:8, name:"Sortie plaisir 7 km", type:"recuperation", dist:"7 km", allure:"6'10/km", desc:"Sortie plaisir et confiance. Rappelle-toi tout ce que tu as accompli.", duration:"45 min" },
+  { week:8, name:"Fractionné entretien", type:"fractionne", dist:"4 km", allure:"5'30/km × 3×4 min", desc:"Maintien de la forme. Qualité > quantité.", duration:"40 min" },
+
+  // SEMAINE 9 — PUSH FINAL
+  { week:9, name:"Tempo race pace", type:"tempo", dist:"6 km", allure:"5'05/km", desc:"Ton allure de course objectif sur 6 km. Dur mais nécessaire !", duration:"32 min" },
+  { week:9, name:"Renforcement — Activation", type:"renforcement", dist:"", allure:"", duration:"30 min",
+    desc:"Activation neuro-musculaire avant la course. Séance dynamique et courte. 3 tours.",
+    exercices:[
+      {name:"Squat jump",detail:"3×10 reps"},
+      {name:"Fentes sautées",detail:"3×6 / jambe"},
+      {name:"Gainage frontal",detail:"3×40 sec"},
+      {name:"Sprint sur place",detail:"3×15 sec"},
+      {name:"Mollets explosifs",detail:"3×15 reps"},
+      {name:"Jumping jacks",detail:"3×20 sec"}
+    ]
+  },
+  { week:9, name:"9 km allure cible", type:"tempo", dist:"9 km", allure:"5'05/km", desc:"9 km à l'allure objectif. Sens le rythme des 50 min. C'est presque là !", duration:"48 min" },
+  { week:9, name:"Fractionné puissance", type:"fractionne", dist:"6 km", allure:"4'50/km × 5×3 min", desc:"Plus vite que l'objectif ! 5 séries à 4'50/km. Récup 2 min.", duration:"55 min" },
+
+  // SEMAINE 10 — RACE WEEK
+  { week:10, name:"Activation légère", type:"endurance", dist:"4 km", allure:"6'00/km", desc:"Jambes légères, 4 km souples. Aucun effort. Préserve ta forme.", duration:"25 min" },
+  { week:10, name:"Renforcement — Légèreté", type:"renforcement", dist:"", allure:"", duration:"15 min",
+    desc:"Très court ! Juste pour activer les muscles sans fatiguer. 2 tours.",
+    exercices:[
+      {name:"Squat léger",detail:"2×10 reps"},
+      {name:"Mollets",detail:"2×15 reps"},
+      {name:"Gainage",detail:"2×20 sec"},
+      {name:"Fentes douces",detail:"2×5 / jambe"},
+      {name:"Étirements dynamiques",detail:"2×30 sec"}
+    ]
+  },
+  { week:10, name:"Strides & légèreté", type:"fractionne", dist:"3 km", allure:"5×20 sec vifs", desc:"3 km faciles + 5 accélérations de 20 sec. Corps vif et réactif.", duration:"28 min" },
+  { week:10, name:"🏁 RACE DAY — 10 km !", type:"tempo", dist:"10 km", allure:"5'00/km", desc:"LE JOUR J ! Pars pas trop vite les 2 premiers km. Trouve ton rythme. Tu vas le faire !", duration:"50 min" },
+];
+
+const TYPES = {
+  endurance: "Endurance",
+  fractionne: "Fractionné",
+  tempo: "Tempo",
+  recuperation: "Récupération",
+  renforcement: "Renforcement 💪"
+};
+
+let state = JSON.parse(localStorage.getItem('run10k_v2') || '{}');
+function save() { localStorage.setItem('run10k_v2', JSON.stringify(state)); }
+function getStatus(idx) { return state[`s${idx}`] || 'pending'; }
+function setStatus(idx, st) { state[`s${idx}`] = st; save(); }
+function getPaceHistory() { return state.paceHistory || []; }
+function addPaceLog(val) {
+  const h = getPaceHistory();
+  h.unshift({ date: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}), val });
+  state.paceHistory = h.slice(0,10);
+  save();
+}
+
+function getNextPending() {
+  for (let i = 0; i < PROGRAMME.length; i++) {
+    if (getStatus(i) === 'pending') return i;
+  }
+  return -1;
+}
+
+function renderProgramme() {
+  const container = document.getElementById('programme-content');
+  let html = '';
+  let prevWeek = 0;
+
+  PROGRAMME.forEach((session, idx) => {
+    if (session.week !== prevWeek) {
+      const tag = (session.week === 4 || session.week === 8) ? ' 💤 Récup' : session.week === 10 ? ' 🏁 Race Week' : '';
+      html += `<div class="week-section"><div class="week-label">Semaine ${session.week}${tag}</div></div>`;
+      prevWeek = session.week;
+    }
+
+    const status = getStatus(idx);
+    const isNext = idx === getNextPending();
+    const statusClass = status === 'done' ? 'done' : status === 'skipped' ? 'skipped' : isNext ? 'current' : '';
+    const statusIcon = status === 'done' ? '✅' : status === 'skipped' ? '❌' : isNext ? '▶️' : '';
+    const typeClass = `badge-${session.type}`;
+    const delay = (idx % 4) * 50;
+
+    let exercicesHtml = '';
+    if (session.exercices) {
+      exercicesHtml = `<div class="exercices-bloc">`;
+      session.exercices.forEach(e => {
+        exercicesHtml += `<div class="exercice-row"><span class="exercice-name">${e.name}</span><span class="exercice-detail">${e.detail}</span></div>`;
+      });
+      exercicesHtml += `</div>`;
+    }
+
+    const distInfo = session.dist ? `<strong>${session.dist}</strong> · ` : '';
+    const allureInfo = session.allure ? `${session.allure} · ` : '';
+
+    html += `
+      <div class="week-section">
+        <div class="session-card ${statusClass}" style="animation-delay:${delay}ms">
+          ${statusIcon ? `<div class="status-icon">${statusIcon}</div>` : ''}
+          <div class="session-top">
+            <div class="session-name">${session.name}</div>
+            <div class="session-badge ${typeClass}">${TYPES[session.type]}</div>
+          </div>
+          <div class="session-details">
+            ${distInfo}${allureInfo}⏱ ${session.duration}<br>${session.desc}
+          </div>
+          ${exercicesHtml}
+          ${status === 'pending' ? `
+          <div class="session-actions">
+            <button class="btn btn-done" onclick="markDone(${idx})">✓ Fait</button>
+            <button class="btn btn-skip" onclick="markSkip(${idx})">Sauté</button>
+            ${session.type !== 'renforcement' ? `<button class="btn btn-apple" onclick="openWatchModal(${idx})">⌚ Watch</button>` : ''}
+          </div>
+          ` : `
+          <div class="session-actions">
+            <button class="btn btn-reset" onclick="resetStatus(${idx})">↩ Réinitialiser</button>
+          </div>
+          `}
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+function markDone(idx) {
+  setStatus(idx, 'done');
+  renderProgramme();
+  updateRecap();
+  const msg = PROGRAMME[idx].type === 'renforcement' ? '💪 Renfo validé !' : '✅ Séance validée !';
+  showToast(msg);
+  scheduleNotif(idx);
+}
+function markSkip(idx) {
+  setStatus(idx, 'skipped');
+  renderProgramme();
+  updateRecap();
+  showToast('Séance marquée comme sautée');
+}
+function resetStatus(idx) {
+  setStatus(idx, 'pending');
+  renderProgramme();
+  updateRecap();
+}
+
+function updateRecap() {
+  const total = PROGRAMME.length;
+  let done = 0, skipped = 0, renfo = 0;
+  for (let i = 0; i < total; i++) {
+    const s = getStatus(i);
+    if (s === 'done') {
+      done++;
+      if (PROGRAMME[i].type === 'renforcement') renfo++;
+    }
+    if (s === 'skipped') skipped++;
+  }
+  const courseDone = done - renfo;
+  const pct = Math.round((done / total) * 100);
+  const offset = 251 - (251 * pct / 100);
+  document.getElementById('ringFill').style.strokeDashoffset = offset;
+  document.getElementById('ringPct').textContent = pct + '%';
+  document.getElementById('statDone').innerHTML = `${done} <span>séances</span>`;
+  document.getElementById('pcDone').textContent = courseDone;
+  document.getElementById('pcTotal').textContent = done + skipped;
+  document.getElementById('pcRenfo').textContent = renfo;
+  document.getElementById('pcSkip').textContent = skipped;
+  const currentWeek = Math.min(10, Math.floor((done + skipped) / 4) + 1);
+  document.getElementById('pcWeek').textContent = `S${currentWeek}`;
+
+  const paceH = getPaceHistory();
+  if (paceH.length >= 1) {
+    document.getElementById('statPace').innerHTML = `${paceH[0].val} <span>/km</span>`;
+  }
+
+  renderChart();
+  renderPaceHistory();
+  updateWatchPage();
+}
+
+function renderChart() {
+  let html = '';
+  for (let w = 1; w <= 10; w++) {
+    const weekSess = PROGRAMME.map((s,i) => ({...s,idx:i})).filter(s => s.week === w);
+    const doneCourse = weekSess.filter(s => getStatus(s.idx) === 'done' && s.type !== 'renforcement').length;
+    const doneRenfo = weekSess.filter(s => getStatus(s.idx) === 'done' && s.type === 'renforcement').length;
+    const skip = weekSess.filter(s => getStatus(s.idx) === 'skipped').length;
+    const maxH = 4;
+    html += `
+      <div class="chart-bar-wrap">
+        ${doneCourse ? `<div class="chart-bar chart-bar-done" style="height:${(doneCourse/maxH)*80}px"></div>` : ''}
+        ${doneRenfo ? `<div class="chart-bar chart-bar-renfo" style="height:${(doneRenfo/maxH)*80}px"></div>` : ''}
+        ${skip ? `<div class="chart-bar chart-bar-skip" style="height:${(skip/maxH)*80}px"></div>` : ''}
+        ${!doneCourse && !doneRenfo && !skip ? `<div class="chart-bar chart-bar-future" style="height:8px"></div>` : ''}
+        <div class="chart-bar-label">S${w}</div>
+      </div>
+    `;
+  }
+  document.getElementById('chartBars').innerHTML = html;
+}
+
+function renderPaceHistory() {
+  const h = getPaceHistory();
+  if (!h.length) {
+    document.getElementById('paceHistory').innerHTML = '<div style="font-size:12px;color:var(--muted);font-family:var(--font-mono);padding:8px 0;">Aucune allure enregistrée</div>';
+    return;
+  }
+  let html = '';
+  h.forEach((entry, i) => {
+    let arrow = '';
+    if (i < h.length - 1) {
+      const curr = parsePace(entry.val);
+      const prev = parsePace(h[i+1].val);
+      arrow = curr < prev ? '<span style="color:var(--success);font-size:10px;">▼</span>' : '<span style="color:var(--danger);font-size:10px;">▲</span>';
+    }
+    html += `<div class="pace-entry"><div class="pace-entry-date">${entry.date}</div><div style="display:flex;align-items:center;gap:8px;">${arrow}<div class="pace-entry-val">${entry.val}/km</div></div></div>`;
+  });
+  document.getElementById('paceHistory').innerHTML = html;
+}
+
+function parsePace(str) {
+  const parts = str.replace("'",':').split(':');
+  return parseInt(parts[0])*60 + parseInt(parts[1]||0);
+}
+
+function logPace() {
+  const val = document.getElementById('paceInput').value.trim();
+  if (!val.match(/^\d'?\d{1,2}$/)) { showToast("Format : 5'45 ou 6'20"); return; }
+  addPaceLog(val);
+  document.getElementById('paceInput').value = '';
+  updateRecap();
+  showToast('📈 Allure enregistrée !');
+}
+
+function updateWatchPage() {
+  const next = getNextPending();
+  const el = document.getElementById('nextSessionWatch');
+  if (next === -1) { el.innerHTML = '🎉 Programme terminé !'; return; }
+  const s = PROGRAMME[next];
+  const distInfo = s.dist ? `${s.dist} · ` : '';
+  el.innerHTML = `<strong style="color:var(--accent)">${s.name}</strong><br>${distInfo}⏱ ${s.duration}<br><br><span style="color:var(--text)">${s.desc}</span>`;
+
+  const currentWeek = s.week;
+  const weekSess = PROGRAMME.map((s,i) => ({...s,idx:i})).filter(s => s.week === currentWeek);
+  let whtml = '';
+  weekSess.forEach(s => {
+    const st = getStatus(s.idx);
+    const icon = st === 'done' ? '✅' : st === 'skipped' ? '❌' : '⏳';
+    const typeEmoji = s.type === 'renforcement' ? '💪' : '🏃';
+    whtml += `${icon} ${typeEmoji} ${s.name}${s.dist ? ' — '+s.dist : ''}<br>`;
+  });
+  document.getElementById('watchWeekSessions').innerHTML = whtml;
+}
+
+function openWatchModal(idx) {
+  const s = PROGRAMME[idx];
+  document.getElementById('modalSessionInfo').innerHTML = `<strong>${s.name}</strong><br>${s.dist} · ${s.allure} · ${s.duration}`;
+  document.getElementById('modalSteps').innerHTML = `
+    <div class="modal-step"><div class="modal-step-num">1</div><div class="modal-step-text">Sur ta Watch : <strong>Entraînement → Course en plein air</strong></div></div>
+    <div class="modal-step"><div class="modal-step-num">2</div><div class="modal-step-text">Allure cible : <strong>${s.allure}</strong></div></div>
+    <div class="modal-step"><div class="modal-step-num">3</div><div class="modal-step-text">Durée estimée : <strong>${s.duration}</strong></div></div>
+    <div class="modal-step"><div class="modal-step-num">4</div><div class="modal-step-text">Après la course, reviens ici → <strong>Fait ✓</strong></div></div>
+  `;
+  document.getElementById('watchModal').classList.add('show');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function closeWatchModal(e) { if (e.target.id === 'watchModal') closeModal('watchModal'); }
+
+function scheduleNotif(idx) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const next = PROGRAMME[idx + 1];
+  if (next) {
+    setTimeout(() => {
+      new Notification('🏃 Run10K', { body: `Prochaine : ${next.name}${next.dist ? ' ('+next.dist+')' : ''}` });
+    }, 300);
+  }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['programme','recap','montre'][i] === tab);
+  });
+  document.querySelectorAll('.page').forEach((p,i) => {
+    p.classList.toggle('active', ['page-programme','page-recap','page-montre'][i] === `page-${tab}`);
+  });
+  if (tab === 'recap') updateRecap();
+  if (tab === 'montre') updateWatchPage();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('splash').classList.add('hide');
+    renderProgramme();
+    updateRecap();
+    if ('Notification' in window && Notification.permission !== 'denied') Notification.requestPermission();
+  }, 1600);
+});
+</script>
+
+</body>
+</html>
